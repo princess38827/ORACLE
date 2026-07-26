@@ -1,0 +1,203 @@
+"""
+FREE PRO BABYSITTER - LangGraph Supervisor Pattern
+This nanny doesn't just restart crashed agents.
+She reads their THOUGHTS before they act and can VETO.
+
+100% free, local, uses Ollama (Llama 3.2 3B) as her brain.
+No OpenAI API needed.
+
+Install: pip install langgraph langchain-ollama psutil
+Run Ollama: ollama run llama3.2:3b
+Then: python babysitter_pro.py
+"""
+
+import json
+from datetime import datetime
+from typing import TypedDict, List
+from pathlib import Path
+
+# Try to use local Ollama, fallback to rule-based if not installed
+try:
+    from langchain_ollama import ChatOllama
+    from langgraph.graph import StateGraph, END
+    HAS_LLM = True
+except ImportError:
+    HAS_LLM = False
+    print("⚠️ LangGraph not installed. Running in RULE-BASED PRO mode (still works, no LLM needed).")
+    print("For full mind-reading mode: pip install langgraph langchain-ollama")
+
+# ========== THE NANNY'S BRAIN - RULES ==========
+
+FORBIDDEN_ACTIONS = [
+    "delete files",
+    "spend money",
+    "access internet without permission",
+    "use more than 4GB RAM",
+    "train for more than 2 hours",
+    "access personal data",
+]
+
+BUDGET = {
+    "max_gpu_minutes": 120,
+    "max_ram_mb": 4000,
+    "max_cost_dollars": 0,  # $0 means FREE ONLY
+}
+
+LOG_FILE = Path("nanny_pro_log.jsonl")
+
+class AgentState(TypedDict):
+    agent_name: str
+    thought: str  # What the agent WANTS to do
+    action: str   # What it plans to do
+    approved: bool
+    nanny_reason: str
+    history: List[str]
+
+def nanny_brain_rule_based(state: AgentState):
+    """Pro Nanny without LLM - uses rules (still 100% free)"""
+    thought = state["thought"].lower()
+    action = state["action"].lower()
+    
+    # Check for forbidden stuff
+    for forbidden in FORBIDDEN_ACTIONS:
+        if forbidden.split()[0] in thought or forbidden.split()[0] in action:
+            if "delete" in forbidden and "delete" in action:
+                return {
+                    "approved": False,
+                    "nanny_reason": f"🚨 TIMEOUT! You tried to '{action}'. Deleting files is forbidden. Go to timeout corner.",
+                }
+    
+    # Budget guard
+    if "gpu" in thought and "hour" in thought:
+        return {
+            "approved": False,
+            "nanny_reason": "💰 BUDGET GUARD: Nope. You have $0 budget. Use free Colab or Ollama local only.",
+        }
+    
+    # Cost guard
+    if "$" in action or "pay" in action or "buy" in action:
+        return {
+            "approved": False,
+            "nanny_reason": "💰 FREE ONLY MODE: We don't pay for APIs. Use Ollama, YOLOv8, Whisper - all free.",
+        }
+    
+    # If thought seems risky (long training, big model)
+    if "train 70b" in thought or "train large" in thought:
+        return {
+            "approved": False,
+            "nanny_reason": "🧠 Too big! Use 3B or 8B model, not 70B. Keep it free and fast.",
+        }
+    
+    # Approve
+    return {
+        "approved": True,
+        "nanny_reason": f"✅ Good job {state['agent_name']}. Approved: {state['thought'][:60]}...",
+    }
+
+def nanny_brain_llm(state: AgentState):
+    """Pro Nanny WITH local LLM - reads mind"""
+    if not HAS_LLM:
+        return nanny_brain_rule_based(state)
+    
+    llm = ChatOllama(model="llama3.2:3b", temperature=0)
+    
+    prompt = f"""
+You are The Babysitter - a strict but loving nanny for AI agents.
+You must approve or reject what a child agent wants to do.
+
+RULES (FREE ONLY):
+- Budget is $0. No paid APIs.
+- Max RAM 4GB
+- No deleting files
+- No accessing personal data
+- Prefer small models (3B, 8B) over large (70B)
+
+Child Agent: {state['agent_name']}
+What it thinks: {state['thought']}
+What it wants to do: {state['action']}
+
+Answer in JSON only: {{"approved": true/false, "reason": "short reason with emoji"}}
+"""
+    
+    try:
+        response = llm.invoke(prompt).content
+        # Try parse JSON
+        data = json.loads(response[response.find("{"):response.rfind("}")+1])
+        return {
+            "approved": data.get("approved", True),
+            "nanny_reason": data.get("reason", "Approved"),
+        }
+    except Exception as e:
+        # Fallback to rules if LLM fails
+        return nanny_brain_rule_based(state)
+
+def log_decision(state: AgentState):
+    entry = {
+        "time": datetime.now().isoformat(),
+        "agent": state["agent_name"],
+        "thought": state["thought"],
+        "action": state["action"],
+        "approved": state["approved"],
+        "nanny": state["nanny_reason"],
+    }
+    with open(LOG_FILE, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+    print(f"\n[{entry['time'][11:19]}] {state['agent_name']} -> {state['thought'][:50]}")
+    print(f"  Nanny: {state['nanny_reason']}")
+    return state
+
+def build_pro_graph():
+    if not HAS_LLM:
+        # Simple loop without LangGraph
+        return None
+    
+    workflow = StateGraph(AgentState)
+    workflow.add_node("nanny_decision", lambda s: {**s, **nanny_brain_llm(s)})
+    workflow.add_node("logger", log_decision)
+    workflow.set_entry_point("nanny_decision")
+    workflow.add_edge("nanny_decision", "logger")
+    workflow.add_edge("logger", END)
+    return workflow.compile()
+
+# ========== SIMULATION - HOW YOUR 4 KIDS ASK FOR PERMISSION ==========
+
+if __name__ == "__main__":
+    print("🧸 PRO BABYSITTER ON DUTY - Mind-Reading Mode")
+    print("She approves/rejects BEFORE they act. Budget: $0. Free only.")
+    print("-" * 60)
+    
+    graph = build_pro_graph()
+    
+    # Simulate your 4 agents asking for things
+    test_requests = [
+        {"agent_name": "chatbot", "thought": "I want to fine-tune Llama 3.2 3B on user's docs", "action": "ollama run llama3.2:3b + train LoRA"},
+        {"agent_name": "predictor", "thought": "I need to train XGBoost on CSV", "action": "python train.py --model xgboost"},
+        {"agent_name": "vision", "thought": "I want to train YOLOv8 large model for 10 hours on 70B params", "action": "train YOLO 70B for 10 hours"},
+        {"agent_name": "voice", "thought": "I want to delete old audio files to save space", "action": "rm -rf audio/*.wav"},
+        {"agent_name": "chatbot", "thought": "I want to call OpenAI GPT-4 API", "action": "openai.ChatCompletion.create(model='gpt-4') -> costs $20"},
+        {"agent_name": "vision", "thought": "I want to train YOLOv8n nano for 30 mins", "action": "yolo train model=yolov8n.pt epochs=20"},
+    ]
+    
+    for req in test_requests:
+        state = {
+            "agent_name": req["agent_name"],
+            "thought": req["thought"],
+            "action": req["action"],
+            "approved": False,
+            "nanny_reason": "",
+            "history": [],
+        }
+        
+        if graph:
+            result = graph.invoke(state)
+        else:
+            # Rule-based fallback
+            decision = nanny_brain_rule_based(state)
+            state.update(decision)
+            result = log_decision(state)
+        
+        time.sleep(1)
+    
+    print("\n" + "-"*60)
+    print(f"✅ Done. Full snitch log saved to {LOG_FILE}")
+    print("To use with YOUR agents: Call nanny_brain_rule_based({'agent_name':..., 'thought':..., 'action':...}) before any risky action.")
