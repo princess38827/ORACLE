@@ -8,10 +8,48 @@ implementation so the agent can look them up at runtime.
 
 from __future__ import annotations
 
+import ast
 import math
+import operator
 import re
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
+
+
+# ---------------------------------------------------------------------------
+# Safe AST-based arithmetic evaluator
+# ---------------------------------------------------------------------------
+
+_SAFE_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.Mod: operator.mod,
+    ast.FloorDiv: operator.floordiv,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+
+def _safe_eval_expr(node: ast.expr) -> float:
+    """Recursively evaluate an arithmetic AST node with no arbitrary code execution."""
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float)):
+            return float(node.value)
+        raise ValueError(f"Non-numeric constant: {node.value!r}")
+    if isinstance(node, ast.BinOp):
+        op_fn = _SAFE_OPS.get(type(node.op))
+        if op_fn is None:
+            raise ValueError(f"Unsupported binary operator: {type(node.op).__name__}")
+        return op_fn(_safe_eval_expr(node.left), _safe_eval_expr(node.right))
+    if isinstance(node, ast.UnaryOp):
+        op_fn = _SAFE_OPS.get(type(node.op))
+        if op_fn is None:
+            raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
+        return op_fn(_safe_eval_expr(node.operand))
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
 # ---------------------------------------------------------------------------
@@ -26,16 +64,17 @@ ToolFn = Callable[[Dict[str, Any]], Dict[str, Any]]
 # ---------------------------------------------------------------------------
 
 def tool_calculate(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Safely evaluate a simple arithmetic expression."""
+    """Safely evaluate a simple arithmetic expression using AST parsing."""
     expression: str = str(args.get("expression", "")).strip()
-    # Allow only safe characters: digits, operators, parentheses, spaces, dots
-    if not re.fullmatch(r"[\d\s\+\-\*\/\(\)\.\%\^]+", expression):
-        return {"result": None, "error": "Unsafe expression – only arithmetic operators allowed."}
+    if not expression:
+        return {"result": None, "error": "No expression provided."}
+    # Replace ^ with ** for exponentiation before parsing
+    safe_expr = expression.replace("^", "**")
     try:
-        # Replace ^ with ** for exponentiation
-        safe_expr = expression.replace("^", "**")
-        result = eval(safe_expr, {"__builtins__": {}}, {"math": math})  # noqa: S307
-        return {"result": result}
+        tree = ast.parse(safe_expr, mode="eval")
+        result = _safe_eval_expr(tree.body)
+        # Return int when the result is a whole number for cleaner output
+        return {"result": int(result) if result == int(result) else result}
     except Exception as exc:
         return {"result": None, "error": str(exc)}
 

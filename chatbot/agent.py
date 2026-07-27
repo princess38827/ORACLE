@@ -137,9 +137,13 @@ class RuleBasedBackend(LLMBackend):
 
         lower = user_text.lower()
 
-        # Detect arithmetic
-        if re.search(r"\d[\s\d\+\-\*\/\^\(\)\.]+\d", user_text):
-            expr = re.search(r"(\d[\d\s\+\-\*\/\^\(\)\.]*\d)", user_text)
+        # Detect arithmetic: at least one digit present with optional operators/parens
+        if re.search(r"\d", user_text) and re.search(r"[\d\+\-\*\/\^\(\)]+", user_text):
+            # Extract the first contiguous arithmetic sub-expression (starts with digit or paren)
+            expr = re.search(r"([\(\d][\d\s\+\-\*\/\^\(\)\.]*[\d\)])", user_text)
+            if not expr:
+                # Single number
+                expr = re.search(r"(\d+(?:\.\d+)?)", user_text)
             if expr:
                 return LLMResponse(tool_call={"name": "calculate", "args": {"expression": expr.group(1).strip()}})
 
