@@ -12,6 +12,7 @@ Quick-start
 """
 
 from .agent import ChatbotAgent, LLMBackend, LLMResponse, Message, RuleBasedBackend
+from .openai_backend import OpenAIBackend
 from .oracle_client import AgentInfo, OracleClient, OracleTask
 from .tools import ToolRegistry
 
@@ -20,6 +21,7 @@ __all__ = [
     "LLMBackend",
     "LLMResponse",
     "Message",
+    "OpenAIBackend",
     "RuleBasedBackend",
     "AgentInfo",
     "OracleClient",
