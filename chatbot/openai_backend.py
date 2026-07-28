@@ -139,7 +139,7 @@ class OpenAIBackend(LLMBackend):
         max_tokens: int = 1024,
     ) -> None:
         try:
-            import openai  # noqa: F401  (imported lazily to keep the package optional)
+            import openai  # noqa: F401  (imported conditionally to keep the package optional)
         except ImportError as exc:
             raise ImportError(
                 "The 'openai' package is required to use OpenAIBackend. "

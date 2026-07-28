@@ -105,13 +105,18 @@ class TestMessagesToOai:
 
 @pytest.fixture()
 def backend():
-    """Return an OpenAIBackend with the openai client fully mocked out."""
-    with patch("openai.OpenAI") as mock_openai_cls:
-        mock_client = MagicMock()
-        mock_openai_cls.return_value = mock_client
-        b = OpenAIBackend(api_key="test-key", model="gpt-4o-mini")
-        b._client = mock_client
-        yield b
+    """Return an OpenAIBackend with the openai client fully mocked out.
+
+    We bypass the constructor entirely to avoid any real openai.OpenAI
+    instantiation (which would require a valid API key or an installed package
+    at fixture-setup time).
+    """
+    b = OpenAIBackend.__new__(OpenAIBackend)
+    b.model = "gpt-4o-mini"
+    b.temperature = 0
+    b.max_tokens = 1024
+    b._client = MagicMock()
+    yield b
 
 
 class TestOpenAIBackendComplete:
