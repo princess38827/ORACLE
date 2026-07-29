@@ -191,7 +191,6 @@ class TestOpenAIBackendMessageConversion:
 
 class TestOpenAIBackendImportError:
     def test_raises_import_error_when_openai_missing(self):
-        import sys
         import builtins
 
         real_import = builtins.__import__

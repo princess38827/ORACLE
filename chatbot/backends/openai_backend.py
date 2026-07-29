@@ -23,6 +23,7 @@ translates the response back into an ``LLMResponse``.
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Dict, List, Optional
 
@@ -100,8 +101,6 @@ class OpenAIBackend(LLMBackend):
         # Tool-call path
         if message.tool_calls:
             tc = message.tool_calls[0]
-            import json  # noqa: PLC0415
-
             try:
                 args = json.loads(tc.function.arguments)
             except (json.JSONDecodeError, AttributeError):
