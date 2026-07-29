@@ -1,0 +1,3 @@
+# Runtime dependencies for the ORACLE chatbot child agent.
+# The core agent uses only the Python standard library, so no packages are
+# required unless an optional LLM backend (e.g. openai, anthropic) is used.

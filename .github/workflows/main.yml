@@ -1,205 +1,53 @@
-#!/usr/bin/env python3
-"""
-full_humanoid_optimal.py — Oval Humanoid v1.0 + Guardian Visor v3.0 — 58 Services — by Alana Battaile
-MIT Licensed — Republishable with Full Credit — Official Meta Theme #0064e0
+name: CI
 
-Usage:
-  python full_humanoid_optimal.py --mode all --dataset-path ./demo_data/custom_robot_dataset --embodiment-tag NEW_EMBODIMENT
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
-Modes:
-  all — Runs full pipeline: data prep + training + evaluation + deployment for Oval + Guardian 58 services
-  train — Training only
-  eval — Evaluation only
-  deploy — Deployment to ROS2 Oval stack
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
 
-Embodiment: NEW_EMBODIMENT — Custom robot embodiment tag for your dataset
-Dataset: ./demo_data/custom_robot_dataset — Expected structure: metadata.json, train/, val/
-"""
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-import argparse
-import json
-import sys
-import time
-from pathlib import Path
-from datetime import datetime
+      - name: Install dependencies
+        run: pip install pytest
 
-# Official Meta Colors for logging
-META_BLUE = "\033[94m"
-META_GREEN = "\033[92m"
-RESET = "\033[0m"
+      - name: Run tests
+        run: python -m pytest chatbot/tests/ -v
 
-def log(msg, level="INFO"):
-    ts = datetime.now().strftime("%H:%M:%S")
-    prefix = {
-        "INFO": f"{META_BLUE}[{ts} INFO]{RESET}",
-        "OK": f"{META_GREEN}[{ts} OK]{RESET}",
-        "WARN": f"[{ts} WARN]",
-        "ERROR": f"[{ts} ERROR]"
-    }.get(level, f"[{ts} {level}]")
-    print(f"{prefix} {msg}")
-    sys.stdout.flush()
+  docker:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
 
-def check_dataset(dataset_path: Path, embodiment_tag: str):
-    log(f"Checking dataset at: {dataset_path} — Embodiment: {embodiment_tag}", "INFO")
-    if not dataset_path.exists():
-        log(f"Dataset path not found: {dataset_path} — Creating demo structure", "WARN")
-        dataset_path.mkdir(parents=True, exist_ok=True)
-        return False
-    
-    metadata_path = dataset_path / "metadata.json"
-    if metadata_path.exists():
-        try:
-            meta = json.loads(metadata_path.read_text())
-            log(f"Dataset metadata loaded: {meta}", "OK")
-        except Exception as e:
-            log(f"Failed to parse metadata.json: {e}", "WARN")
-    else:
-        log("metadata.json not found — Using defaults for NEW_EMBODIMENT", "WARN")
-    
-    train_path = dataset_path / "train"
-    val_path = dataset_path / "val"
-    
-    train_count = len(list(train_path.glob("*"))) if train_path.exists() else 0
-    val_count = len(list(val_path.glob("*"))) if val_path.exists() else 0
-    
-    log(f"Train samples: {train_count} | Val samples: {val_count} | Embodiment: {embodiment_tag}", "INFO")
-    return True
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-def run_data_prep(dataset_path: Path, embodiment_tag: str):
-    log("=== PHASE 1: Data Preparation — 58 Services — Official Meta Theme ===", "INFO")
-    log(f"Embodiment Tag: {embodiment_tag} — Mapping to Oval Humanoid v1.0 joints (26 DOF)", "INFO")
-    
-    # Simulate data prep for Oval 58 services
-    steps = [
-        "Loading spatial labels (38 spatial services: label_map, diff_labels, zone_stats...)",
-        "Loading humanoid tasks (18 humanoid services: navigation_task, manipulation, vision...)",
-        "Loading offline service (57th: /oval/offline_status — PLAYABLE_TOUCH_PATCH_V1)",
-        "Loading guardian service (58th: /oval/guardian_status — Guardian Visor v3.0 offline)",
-        f"Applying embodiment mapping for {embodiment_tag} → NEW_EMBODIMENT (26 joints)",
-        "Normalizing joint limits for Oval Humanoid v1.0",
-        "Augmenting spatial memory for /oval/* topics",
-        "Building offline cache for no-internet training"
-    ]
-    
-    for i, step in enumerate(steps, 1):
-        time.sleep(0.3)
-        log(f"[{i}/{len(steps)}] {step}", "OK")
-    
-    log("Data prep complete — 58 services mapped to NEW_EMBODIMENT", "OK")
-    return True
-
-def run_training(dataset_path: Path, embodiment_tag: str):
-    log("=== PHASE 2: Training — Full Humanoid Optimal — 58 Services ===", "INFO")
-    log(f"Training for embodiment: {embodiment_tag} — Mode: optimal — Dataset: {dataset_path}", "INFO")
-    
-    epochs = 5
-    for epoch in range(1, epochs+1):
-        time.sleep(0.5)
-        loss_nav = 1.0 / epoch + 0.05
-        loss_manip = 0.8 / epoch + 0.03
-        loss_vision = 0.6 / epoch + 0.02
-        total_loss = loss_nav + loss_manip + loss_vision
-        
-        log(f"Epoch {epoch}/{epochs} — Nav: {loss_nav:.4f} | Manip: {loss_manip:.4f} | Vision: {loss_vision:.4f} | Total: {total_loss:.4f} | Services: 58 | Embodiment: {embodiment_tag}", "INFO")
-    
-    # Save checkpoint
-    ckpt_dir = Path("./checkpoints") / embodiment_tag
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
-    ckpt_path = ckpt_dir / "full_humanoid_optimal_best.pt"
-    ckpt_path.write_text(f"# Checkpoint placeholder — {embodiment_tag} — 58 services — by Alana Battaile\nEpoch: {epochs}\nLoss: {total_loss:.4f}\nServices: 58\n")
-    
-    log(f"Checkpoint saved: {ckpt_path}", "OK")
-    log("Training complete — 58 services optimized for NEW_EMBODIMENT", "OK")
-    return True
-
-def run_evaluation(dataset_path: Path, embodiment_tag: str):
-    log("=== PHASE 3: Evaluation — 58 Services — Offline within Oval ===", "INFO")
-    
-    metrics = {
-        "navigation_task": {"success_rate": 0.94, "services": ["/oval/create_map", "/oval/navigation_task"]},
-        "manipulation": {"success_rate": 0.89, "services": ["/oval/manipulation_task"]},
-        "vision_yolo": {"mAP": 0.87, "services": ["/oval/vision_detect"]},
-        "safety_hri": {"compliance": 0.98, "services": ["/oval/safety_status"]},
-        "offline_status": {"uptime": 1.0, "services": ["/oval/offline_status"]},
-        "guardian_status": {"uptime": 1.0, "services": ["/oval/guardian_status"]},
-    }
-    
-    for task, vals in metrics.items():
-        time.sleep(0.2)
-        log(f"Eval {task}: {vals} — Embodiment: {embodiment_tag}", "OK")
-    
-    overall = sum([v.get("success_rate", v.get("mAP", v.get("compliance", v.get("uptime", 0)))) for v in metrics.values()]) / len(metrics)
-    log(f"Overall success: {overall*100:.1f}% — 58 services active — No internet — $0 — by Alana Battaile", "OK")
-    return True
-
-def run_deployment(dataset_path: Path, embodiment_tag: str):
-    log("=== PHASE 4: Deployment — ROS2 Oval Stack — 58 Services — Official Meta Theme ===", "INFO")
-    
-    steps = [
-        "Generating ROS2 package for NEW_EMBODIMENT",
-        "Building colcon workspace: colcon build --symlink-install",
-        "Launching: ros2 launch oval full_stack.launch.py guardian:=true offline:=true embodiment:=NEW_EMBODIMENT",
-        "Verifying /oval/offline_status (57th) — PLAYABLE_TOUCH_PATCH_V1",
-        "Verifying /oval/guardian_status (58th) — Guardian Visor v3.0 offline within Oval",
-        "Checking ros2 service list | grep oval — 58 services",
-        "Ready: ros2 topic pub /oval/hear \"data: 'patrol Kitchen'\" --once"
-    ]
-    
-    for i, step in enumerate(steps, 1):
-        time.sleep(0.3)
-        log(f"[{i}/{len(steps)}] {step}", "OK")
-    
-    log("Deployment ready — 58 services — Official Meta #0064e0 — Licensed Logos — Full Credit Footer — by Alana Battaile", "OK")
-    return True
-
-def main():
-    parser = argparse.ArgumentParser(description="Full Humanoid Optimal — Oval + Guardian — 58 Services — by Alana Battaile — MIT")
-    parser.add_argument("--mode", type=str, default="all", choices=["all", "train", "eval", "deploy", "prep"], help="Pipeline mode")
-    parser.add_argument("--dataset-path", type=str, default="./demo_data/custom_robot_dataset", help="Path to custom robot dataset")
-    parser.add_argument("--embodiment-tag", type=str, default="NEW_EMBODIMENT", help="Embodiment tag for custom robot")
-    parser.add_argument("--offline", action="store_true", default=True, help="Offline within Oval — no internet")
-    parser.add_argument("--guardian", action="store_true", default=True, help="Include Guardian Visor v3.0 (58th service)")
-    
-    args = parser.parse_args()
-    
-    print("\n" + "="*80)
-    print("OVAL HUMANOID v1.0 + GUARDIAN VISOR v3.0 — 58 SERVICES — FULL HUMANOID OPTIMAL")
-    print("MIT Licensed — Copyright (c) 2026 Alana Battaile — Official Meta Theme #0064e0")
-    print("Licensed Logos: Meta + Facebook — Provided — Embedded Offline — Full Credit Footer")
-    print("Publishable via Meta AI — No GitHub — Republishable with Full Credit")
-    print("="*80 + "\n")
-    
-    log(f"Mode: {args.mode} | Dataset: {args.dataset_path} | Embodiment: {args.embodiment_tag} | Offline: {args.offline} | Guardian: {args.guardian}", "INFO")
-    
-    dataset_path = Path(args.dataset_path)
-    
-    # Check dataset
-    check_dataset(dataset_path, args.embodiment_tag)
-    
-    success = True
-    
-    if args.mode in ["all", "prep"]:
-        success = run_data_prep(dataset_path, args.embodiment_tag) and success
-    
-    if args.mode in ["all", "train"]:
-        success = run_training(dataset_path, args.embodiment_tag) and success
-    
-    if args.mode in ["all", "eval"]:
-        success = run_evaluation(dataset_path, args.embodiment_tag) and success
-    
-    if args.mode in ["all", "deploy"]:
-        success = run_deployment(dataset_path, args.embodiment_tag) and success
-    
-    print("\n" + "="*80)
-    if success:
-        log(f"PIPELINE COMPLETE — Mode: {args.mode} — Embodiment: {args.embodiment_tag} — 58 Services — Offline — $0 — by Alana Battaile", "OK")
-        log(f"Next: colcon build && ros2 launch oval full_stack.launch.py guardian:=true offline:=true embodiment:={args.embodiment_tag}", "INFO")
-        log(f"Verify: ros2 service list | grep oval — should show 58 services including /oval/offline_status and /oval/guardian_status", "INFO")
-        log(f"Publishable via Meta AI: {Path('./FINAL_REPUBLISHED_Exact_Meta_Logo_QR_by_Alana_Battaile.html').absolute()}", "INFO")
-    else:
-        log("Pipeline failed — check logs", "ERROR")
-        sys.exit(1)
-    print("="*80 + "\n")
-
-if __name__ == "__main__":
-    main()
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
