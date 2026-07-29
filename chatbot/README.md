@@ -63,18 +63,40 @@ The agent will:
    (`POST /api/v1/tasks/result`).
 4. Deregister on `agent.shutdown()`.
 
-### Use a real LLM backend
+### Use the built-in OpenAI backend
+
+```python
+from chatbot import ChatbotAgent, OpenAIBackend
+
+agent = ChatbotAgent(
+    backend=OpenAIBackend(model="gpt-4o", api_key="sk-..."),
+)
+print(agent.chat("What is 12 * 8?"))
+agent.shutdown()
+```
+
+The `api_key` can also be supplied via the `OPENAI_API_KEY` environment
+variable.  The `openai` package must be installed first:
+
+```bash
+pip install openai
+```
+
+Available constructor parameters: `model` (default `"gpt-4o-mini"`),
+`api_key`, `temperature` (default `0.7`), `max_tokens` (default `1024`).
+
+### Implement a custom LLM backend
 
 ```python
 from chatbot import ChatbotAgent, LLMBackend, LLMResponse, Message
 from typing import Any, Dict, List
 
-class MyOpenAIBackend(LLMBackend):
+class MyBackend(LLMBackend):
     def complete(self, messages: List[Message], tools: List[Dict[str, Any]]) -> LLMResponse:
-        # Map messages to OpenAI format, call the API, parse tool_calls / content
+        # Map messages to your API format, call it, parse tool_calls / content
         ...
 
-agent = ChatbotAgent(backend=MyOpenAIBackend())
+agent = ChatbotAgent(backend=MyBackend())
 ```
 
 ### Register a custom tool
@@ -105,6 +127,7 @@ print(agent.chat("greet Alice"))
 | `agent.py` | `ChatbotAgent`, `LLMBackend`, `RuleBasedBackend`, `ConversationMemory` |
 | `tools.py` | `ToolRegistry` and built-in tool implementations |
 | `oracle_client.py` | `OracleClient` – ORACLE overseer HTTP integration |
+| `backends/openai_backend.py` | `OpenAIBackend` – OpenAI chat-completions backend |
 | `__init__.py` | Public API re-exports |
 
 ## Running tests
