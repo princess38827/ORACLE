@@ -20,3 +20,7 @@ agent.shutdown()
 ```
 
 See [`chatbot/README.md`](chatbot/README.md) for full documentation.
+
+## External references
+
+- [AgiBot OS documentation](https://www.agibot.com/DOCS/OS?gad_source=1&gad_campaignid=23894634934&gbraid=0AAAABC0KuBBXErWWkHV_xEWgX2ud2WU5L&gclid=CjwKCAjwyabTBhBFEiwAM3mNUDCZC7Q7M1Sifmu8tEi0lTlTVlZxSMXzSRSK846LaEhcQpOUGkV6wRoCssgQAvD_BwE)
