@@ -1,5 +1,0 @@
-# This workflow is intentionally empty.
-# CI / CD is handled by ci.yml in this directory.
-name: main
-on: {}
-jobs: {}
