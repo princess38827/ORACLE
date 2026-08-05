@@ -15,6 +15,7 @@ Quick-start
 torch.Size([1, 16, 32])
 """
 
+from .affective import AetheraAffectiveEngine
 from .config import VLAConfig
 from .encoders import LanguageEncoder, VisionEncoder
 from .fusion import CrossModalFusion
@@ -23,6 +24,7 @@ from .model import OvalHumanoidVLA
 from .preprocessing import ImagePreprocessor, TextTokenizer
 
 __all__ = [
+    "AetheraAffectiveEngine",
     "VLAConfig",
     "VisionEncoder",
     "LanguageEncoder",
