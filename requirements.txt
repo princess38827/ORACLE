@@ -1,3 +1,6 @@
 # Runtime dependencies for the ORACLE chatbot child agent.
 # The core agent uses only the Python standard library, so no packages are
 # required unless an optional LLM backend (e.g. openai, anthropic) is used.
+
+# Optional: multi-agent portfolio analysis script (scripts/multi_agent_portfolio_5in1.py)
+# pip install openai-agents python-dotenv fredapi yfinance
